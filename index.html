@@ -919,7 +919,7 @@ function showShareButton() {
 
 function renderShare(){
   const lines = [];
-  const won = finished && $('#status').textContent.includes('Correct!');
+  const won = finished && $('#status').innerHTML.includes('SHAZAM!');
   const stopAt = won ? currentRow + 1 : Math.min(currentRow, rowCount);
   for (let r=0;r<stopAt;r++){
     const guess = grid[r].join('');
