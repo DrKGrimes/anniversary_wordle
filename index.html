@@ -5,7 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Anniversary Wordle</title>
   <style>
-    /* existing styles unchanged */
+    :root {
+      --bg: #111827; /* slate-900 */
+      --tile-bg: #1f2937; /* slate-800 */
+      --tile-border: #374151; /* slate-700 */
+      --text: #e5e7eb; /* gray-200 */
+      --correct: #22c55e; /* green-500 */
+      --present: #f59e0b; /* amber-500 */
+      --absent: #374151; /* slate-700 */
+      --accent: #93c5fd; /* blue-300 */
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    header { padding: 12px 16px; display:flex; align-items:center; justify-content: space-between; border-bottom: 1px solid var(--tile-border); }
+    h1 { margin: 0; font-size: 18px; letter-spacing: .12em; text-transform: uppercase; }
+    .subtitle { font-size: 12px; opacity: .75; }
+    main { max-width: 520px; margin: 0 auto; padding: 16px; display:flex; flex-direction:column; gap: 12px; }
+    #board { display: grid; gap: 8px; justify-content: center; min-height: 380px; }
+    .row { display: grid; gap: 8px; }
+    .tile { width: 56px; height: 56px; border: 2px solid var(--tile-border); display:grid; place-items:center; font-weight:700; font-size: 26px; text-transform: uppercase; background: var(--tile-bg); border-radius: 6px; }
+    .tile.filled { border-color: var(--accent); }
+    .tile.reveal { transition: transform .3s ease, background-color .3s ease, border-color .3s ease; transform: rotateX(0); }
+    .tile.correct { background: var(--correct); border-color: var(--correct); }
+    .tile.present { background: var(--present); border-color: var(--present); }
+    .tile.absent { background: var(--absent); border-color: var(--absent); }
+    #keyboard { display:grid; gap: 8px; justify-content:center; }
+    .kb-row { display:flex; gap: 6px; justify-content:center; }
+    .key { padding: 12px 10px; background: var(--tile-bg); border: 1px solid var(--tile-border); border-radius: 6px; min-width: 34px; text-align:center; cursor:pointer; user-select:none; font-weight:600; }
+    .key.big { min-width: 58px; }
+    .key.correct { background: var(--correct); border-color: var(--correct); }
+    .key.present { background: var(--present); border-color: var(--present); }
+    .key.absent { background: var(--absent); border-color: var(--absent); }
+    .bar { display:flex; gap:8px; align-items:center; justify-content:space-between; }
+    button, .linklike { background: transparent; color: var(--text); border:1px solid var(--tile-border); border-radius: 8px; padding: 8px 10px; cursor:pointer; }
+    #toast { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(17,24,39,.95); color: var(--text); border:1px solid var(--tile-border); padding: 10px 14px; border-radius: 8px; display:none; z-index: 10; }
+    .hint { font-size: 13px; opacity:.9; background: #0b1220; border:1px solid var(--tile-border); padding: 8px 10px; border-radius: 8px; }
+    .muted { opacity: .7; }
+    footer { padding: 10px 16px; text-align: center; font-size: 12px; opacity:.75 }
+    a { color: #93c5fd; }
+    .small { font-size: 12px; opacity:.8; }
   </style>
 </head>
 <body>
@@ -14,10 +52,11 @@
     <div>
       <h1>Anniversary Wordle</h1>
       <div class="subtitle">Love, luck, and the Year of the Pig 🐖</div>
+      <div id="dict-status" class="small">Loading dictionary…</div>
     </div>
     <div class="bar">
-      <button id="newGameBtn">New game</button>
-      <button id="shareBtn">Share</button>
+      <button id="newGameBtn" title="Pick a new themed word">New game</button>
+      <button id="shareBtn" title="Copy your grid">Share</button>
     </div>
   </header>
   <main>
@@ -29,11 +68,13 @@
     <div id="board"></div>
     <div id="keyboard"></div>
   </main>
-  <footer></footer>
+  <footer>
+    Theme list is editable in code. URL overrides: <code>?answer=pearl</code> or <code>?seed=YYYYMMDD</code>.
+  </footer>
+
 <script>
 /**************
  * THEMED WORD LIST (5 letters each)
- * Add or remove entries as you like. Each has a hint.
  **************/
 const THEME_WORDS = [
   { word: 'paper', hint: '1st anniversary traditional gift' },
@@ -53,7 +94,7 @@ const THEME_WORDS = [
   { word: 'music', hint: 'First-dance vibes' },
   { word: 'cards', hint: 'Anniversary cards' },
   { word: 'happy', hint: 'Happy anniversary!' }
-].filter(x => !x.disabled && x.word.length === 5);
+];
 
 /**************
  * DICTIONARY — loaded dynamically from words.txt
@@ -67,21 +108,20 @@ async function loadWordList() {
     if (!resp.ok) throw new Error(`Failed to load words.txt: ${resp.status}`);
     const text = await resp.text();
     const words = text
-      .split(/\r?\n/) // handles both Windows and Unix newlines
+      .split(/
+?
+/)
       .map(w => w.trim().toLowerCase())
       .filter(w => w.length === 5 && /^[a-z]+$/.test(w));
     ALLOWED_EXTRA_GUESSES = new Set(words);
     DICTIONARY_READY = true;
-    console.log(`Loaded ${ALLOWED_EXTRA_GUESSES.size} words from words.txt`);
+    $('#dict-status').textContent = `Dictionary loaded: ${ALLOWED_EXTRA_GUESSES.size} words.`;
   } catch (err) {
     console.error('Error loading dictionary:', err);
+    $('#dict-status').textContent = 'Dictionary not loaded — themed words only';
     toast('Could not load words.txt — using themed words only.');
   }
 }
-
-
-
-
 
 /**************
  * UTILITIES
@@ -111,7 +151,7 @@ function todaySeed(){
 let solutionObj = null; // {word, hint}
 let solution = '';
 let rowCount = 6;
-let colCount = 5; // default to 5-letter words
+let colCount = 5; // 5-letter words
 let currentRow = 0;
 let currentCol = 0;
 let grid = [];
@@ -128,7 +168,7 @@ function pickSolution(){
     solutionObj = THEME_WORDS[idx];
   }
   solution = solutionObj.word.toLowerCase();
-  colCount = solution.length;
+  colCount = solution.length; // should be 5
 }
 
 function buildBoard(){
@@ -230,7 +270,6 @@ function drawCell(r,c,ch){
 
 function isValidGuess(g){
   if (g.length !== colCount) return false;
-  // Accept solution words, themed words, or any word in words.txt
   return g === solution || THEME_WORDS.some(w => w.word === g) || ALLOWED_EXTRA_GUESSES.has(g);
 }
 
@@ -284,8 +323,10 @@ function setupEvents(){
     $('#hint').style.display = e.target.checked ? '' : 'none';
   });
   $('#newGameBtn').addEventListener('click', ()=>{
-    const seed = params.get('seed') || todaySeed();
-    const nextSeed = String(BigInt(seed) + 1n);
+    // Bump seed in a Safari-safe way
+    const seedStr = params.get('seed') || todaySeed();
+    const n = parseInt(seedStr, 10);
+    const nextSeed = Number.isFinite(n) ? String(n + 1) : todaySeed();
     params.set('seed', nextSeed);
     history.replaceState(null,'',`?${params.toString()}`);
     startGame();
@@ -301,7 +342,8 @@ ${gridEmojis}`;
 
 function renderShare(){
   const lines = [];
-  let stopAt = finished && $('#status').textContent.includes('Correct!') ? currentRow+1 : Math.min(currentRow, rowCount);
+  const won = finished && $('#status').textContent.includes('Correct!');
+  const stopAt = won ? currentRow + 1 : Math.min(currentRow, rowCount);
   for (let r=0;r<stopAt;r++){
     const guess = grid[r].join('');
     const result = scoreGuess(guess, solution);
@@ -311,21 +353,24 @@ function renderShare(){
 ');
 }
 
-async function startGame(){
+async function boot(){
+  $('#dict-status').textContent = 'Loading dictionary…';
+  setupEvents();
+  try { await loadWordList(); } finally { startGame(); }
+}
+
+function startGame(){
   pickSolution();
   buildBoard();
   buildKeyboard();
-  $('#status').textContent = DICTIONARY_READY
-    ? `Guess the word in ${rowCount} tries.`
-    : `Dictionary not loaded — themed words only. Guess the word in ${rowCount} tries.`;
+  $('#status').textContent = `Guess the word in ${rowCount} tries.`;
   $('#hint').style.display = $('#showHint').checked ? '' : 'none';
 }
 
-// Boot: set up UI, then load dictionary, then start game
-setupEvents();
-loadWordList().finally(() => {
-  startGame();
-});
+// Start once DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else { boot(); }
 </script>
 </body>
 </html>
