@@ -67,9 +67,7 @@ async function loadWordList() {
     if (!resp.ok) throw new Error(`Failed to load words.txt: ${resp.status}`);
     const text = await resp.text();
     const words = text
-      .split(/
-?
-/)
+      .split(/\r?\n/) // handles both Windows and Unix newlines
       .map(w => w.trim().toLowerCase())
       .filter(w => w.length === 5 && /^[a-z]+$/.test(w));
     ALLOWED_EXTRA_GUESSES = new Set(words);
@@ -78,9 +76,12 @@ async function loadWordList() {
   } catch (err) {
     console.error('Error loading dictionary:', err);
     toast('Could not load words.txt — using themed words only.');
-    // Keep DICTIONARY_READY=false but game can still start.
   }
 }
+
+
+
+
 
 /**************
  * UTILITIES
