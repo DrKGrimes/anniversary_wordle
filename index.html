@@ -255,6 +255,27 @@
       font-weight: 500;
     }
     
+    .game-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    #mainShareBtn {
+      font-size: clamp(11px, 3vw, 13px);
+      padding: 6px 12px;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      font-weight: 600;
+    }
+    
+    #mainShareBtn:hover {
+      background: #60a5fa;
+      transform: translateY(-1px);
+    }
+    
     /* Animations */
     @keyframes flipIn {
       0% { transform: rotateX(-90deg); }
@@ -469,7 +490,10 @@
   <main>
     <div class="bar">
       <div id="status" class="muted">Guess the word in 6 tries.</div>
-      <div><label><input type="checkbox" id="showHint"> Show hint</label></div>
+      <div class="game-controls">
+        <label><input type="checkbox" id="showHint"> Show hint</label>
+        <button id="mainShareBtn" style="display: none; margin-left: 12px;" title="Share your results">Share</button>
+      </div>
     </div>
     <div id="hint" class="hint" style="display:none"></div>
     <div id="board"></div>
@@ -728,6 +752,7 @@ function handleKey(code){
       finished = true;
       $('#status').innerHTML = `<span style="font-size: 1.2em; background: linear-gradient(135deg, #22c55e, #16a34a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700;">🎉 SHAZAM!</span> The word was <strong style="color: var(--accent);">${solution.toUpperCase()}</strong>.`;
       toast('🎊 SHAZAM! You got it! 🎊', 2000);
+      showShareButton();
       // Add celebration animation to the board
       setTimeout(() => {
         document.querySelectorAll('.tile.correct').forEach((tile, i) => {
@@ -746,6 +771,7 @@ function handleKey(code){
       finished = true;
       $('#status').textContent = `💔 Out of tries. The word was ${solution.toUpperCase()}.`;
       toast('Next time!');
+      showShareButton();
     }
   }
 }
@@ -825,6 +851,9 @@ function setupEvents(){
     closeMenu();
   });
   
+  // Main page share button
+  $('#mainShareBtn').addEventListener('click', shareGame);
+  
   // Hamburger menu
   $('#hamburger').addEventListener('click', toggleMenu);
   $('#menuOverlay').addEventListener('click', (e) => {
@@ -844,8 +873,15 @@ function newGame() {
 
 function shareGame() {
   const gridEmojis = renderShare();
-  const title = `Anniversary Wordle ${solution.toUpperCase()}`;
-  const text = `${title}\n${gridEmojis}`;
+  const date = new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+  const won = finished && $('#status').innerHTML.includes('SHAZAM!');
+  const attempts = won ? `${currentRow}/6` : 'X/6';
+  const title = `Anniversary Wordle ${date}`;
+  const text = `${title}\n${attempts}\n\n${gridEmojis}\n\n💕 Love, luck, and the Year of the Pig 🐖`;
   navigator.clipboard.writeText(text).then(()=> toast('Copied results to clipboard!'));
 }
 
@@ -877,6 +913,10 @@ function closeMenu() {
   document.body.style.overflow = '';
 }
 
+function showShareButton() {
+  $('#mainShareBtn').style.display = 'inline-block';
+}
+
 function renderShare(){
   const lines = [];
   const won = finished && $('#status').textContent.includes('Correct!');
@@ -901,6 +941,7 @@ function startGame(){
   buildKeyboard();
   $('#status').textContent = `Guess the word in ${rowCount} tries.`;
   $('#hint').style.display = $('#showHint').checked ? '' : 'none';
+  $('#mainShareBtn').style.display = 'none'; // Hide share button at start
 }
 
 // Start once DOM is ready
