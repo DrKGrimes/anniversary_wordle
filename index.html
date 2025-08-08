@@ -305,8 +305,8 @@ function handleKey(code){
     revealRow(currentRow, result);
     if (guess === solution){
       finished = true;
-      $('#status').textContent = `🎉 Correct! The word was ${solution.toUpperCase()}.`;
-      toast('You got it!');
+      $('#status').textContent = `🎉 SHAZAM! The word was ${solution.toUpperCase()}.`;
+      toast('SHAZAM! You got it!');
       return;
     }
     currentRow++;
