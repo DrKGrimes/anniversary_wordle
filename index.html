@@ -104,13 +104,13 @@ let DICTIONARY_READY = false;
 
 async function loadWordList() {
   try {
-    const resp = await fetch('words.txt', { cache: 'no-store' });
+    // Try to fetch words.txt from the same directory as the HTML file
+    const resp = await fetch('words.txt');
     if (!resp.ok) throw new Error(`Failed to load words.txt: ${resp.status}`);
     const text = await resp.text();
+    // Fixed regex - was broken in original
     const words = text
-      .split(/
-?
-/)
+      .split(/\r?\n/)
       .map(w => w.trim().toLowerCase())
       .filter(w => w.length === 5 && /^[a-z]+$/.test(w));
     ALLOWED_EXTRA_GUESSES = new Set(words);
@@ -118,8 +118,65 @@ async function loadWordList() {
     $('#dict-status').textContent = `Dictionary loaded: ${ALLOWED_EXTRA_GUESSES.size} words.`;
   } catch (err) {
     console.error('Error loading dictionary:', err);
-    $('#dict-status').textContent = 'Dictionary not loaded — themed words only';
-    toast('Could not load words.txt — using themed words only.');
+    // Fallback to a minimal hardcoded word list if words.txt fails
+    const fallbackWords = [
+      'about', 'above', 'abuse', 'actor', 'acute', 'admit', 'adopt', 'adult', 'after', 'again',
+      'agent', 'agree', 'ahead', 'alarm', 'album', 'alert', 'alive', 'allow', 'alone', 'along',
+      'alter', 'angel', 'anger', 'angle', 'angry', 'apart', 'apple', 'apply', 'arena', 'argue',
+      'arise', 'array', 'aside', 'asset', 'avoid', 'award', 'aware', 'badly', 'baker', 'bases',
+      'basic', 'beach', 'began', 'being', 'below', 'bench', 'billy', 'birth', 'black', 'blame',
+      'blind', 'block', 'blood', 'board', 'boost', 'booth', 'bound', 'brain', 'brand', 'bread',
+      'break', 'breed', 'brief', 'bring', 'broad', 'broke', 'brown', 'build', 'built', 'buyer',
+      'cable', 'calif', 'carry', 'catch', 'cause', 'chain', 'chair', 'chaos', 'charm', 'chart',
+      'chase', 'cheap', 'check', 'chest', 'chief', 'child', 'chose', 'civil', 'claim', 'class',
+      'clean', 'clear', 'click', 'climb', 'clock', 'close', 'cloud', 'coach', 'coast', 'could',
+      'count', 'court', 'cover', 'craft', 'crash', 'crazy', 'cream', 'crime', 'cross', 'crowd',
+      'crown', 'crude', 'curve', 'cycle', 'daily', 'dance', 'dated', 'dealt', 'death', 'debut',
+      'delay', 'delta', 'dense', 'depot', 'depth', 'doing', 'doubt', 'dozen', 'draft', 'drama',
+      'drank', 'drawn', 'dream', 'dress', 'drill', 'drink', 'drive', 'drove', 'dying', 'eager',
+      'early', 'eight', 'elite', 'empty', 'enemy', 'enjoy', 'enter', 'entry', 'equal', 'error',
+      'event', 'every', 'exact', 'exist', 'extra', 'faith', 'false', 'fault', 'fence', 'fiber',
+      'field', 'fifth', 'fifty', 'fight', 'final', 'first', 'fixed', 'flash', 'fleet', 'floor',
+      'fluid', 'focus', 'force', 'forth', 'forty', 'forum', 'found', 'frame', 'frank', 'fraud',
+      'fresh', 'front', 'fruit', 'fully', 'funny', 'giant', 'given', 'glass', 'globe', 'going',
+      'grace', 'grade', 'grand', 'grant', 'grass', 'grave', 'great', 'green', 'gross', 'group',
+      'grown', 'guard', 'guess', 'guest', 'guide', 'guilt', 'handy', 'harsh', 'heart', 'heavy',
+      'hence', 'henry', 'horse', 'hotel', 'house', 'human', 'ideal', 'image', 'imply', 'index',
+      'inner', 'input', 'issue', 'jesus', 'jimmy', 'joint', 'jones', 'judge', 'known', 'label',
+      'large', 'laser', 'later', 'laugh', 'layer', 'learn', 'lease', 'least', 'leave', 'legal',
+      'lemon', 'level', 'lewis', 'light', 'limit', 'links', 'lives', 'local', 'logic', 'loose',
+      'lower', 'lucky', 'lunch', 'lying', 'magic', 'major', 'maker', 'march', 'match', 'mayor',
+      'meant', 'media', 'metal', 'might', 'minor', 'minus', 'mixed', 'model', 'money', 'month',
+      'moral', 'motor', 'mount', 'mouse', 'mouth', 'moved', 'movie', 'needs', 'never', 'newly',
+      'night', 'noise', 'north', 'noted', 'novel', 'nurse', 'occur', 'ocean', 'offer', 'often',
+      'order', 'other', 'ought', 'outer', 'owner', 'paint', 'panel', 'pants', 'party', 'pasta',
+      'patch', 'peace', 'penny', 'phase', 'phone', 'photo', 'piano', 'piece', 'pilot', 'pitch',
+      'place', 'plain', 'plane', 'plant', 'plate', 'plaza', 'point', 'pound', 'power', 'press',
+      'price', 'pride', 'prime', 'print', 'prior', 'prize', 'proof', 'proud', 'prove', 'queen',
+      'quick', 'quiet', 'quite', 'radio', 'raise', 'range', 'rapid', 'ratio', 'reach', 'ready',
+      'realm', 'rebel', 'refer', 'relax', 'reply', 'rider', 'ridge', 'rifle', 'right', 'rigid',
+      'river', 'rocky', 'roger', 'roman', 'rough', 'round', 'route', 'royal', 'rural', 'scale',
+      'scene', 'scope', 'score', 'sense', 'serve', 'seven', 'shall', 'shape', 'share', 'sharp',
+      'sheet', 'shelf', 'shell', 'shift', 'shine', 'shirt', 'shock', 'shoot', 'shore', 'short',
+      'shown', 'sight', 'silly', 'since', 'sixth', 'sixty', 'sized', 'skill', 'slash', 'sleep',
+      'slide', 'small', 'smart', 'smile', 'smith', 'smoke', 'snake', 'solid', 'solve', 'sorry',
+      'sound', 'south', 'space', 'spare', 'speak', 'speed', 'spend', 'spent', 'split', 'spoke',
+      'sport', 'squad', 'staff', 'stage', 'stake', 'stand', 'start', 'state', 'steam', 'steel',
+      'steep', 'stick', 'still', 'stock', 'stone', 'stood', 'store', 'storm', 'story', 'strip',
+      'stuck', 'study', 'stuff', 'style', 'sugar', 'suite', 'super', 'sweet', 'table', 'taken',
+      'taste', 'taxes', 'teach', 'teeth', 'tempo', 'texas', 'thank', 'theft', 'their', 'theme',
+      'there', 'these', 'thick', 'thing', 'think', 'third', 'those', 'three', 'threw', 'throw',
+      'thumb', 'tight', 'times', 'title', 'today', 'tommy', 'total', 'touch', 'tough', 'tower',
+      'trace', 'track', 'trade', 'trail', 'train', 'trash', 'treat', 'trend', 'trial', 'tribe',
+      'trick', 'tried', 'tries', 'troop', 'truck', 'truly', 'trump', 'trust', 'truth', 'twice',
+      'under', 'undue', 'union', 'unity', 'until', 'upper', 'upset', 'urban', 'usage', 'usual',
+      'valid', 'value', 'video', 'virus', 'visit', 'vital', 'vocal', 'voice', 'voter', 'wagon',
+      'waste', 'watch', 'water', 'wheel', 'where', 'which', 'while', 'white', 'whole', 'whose',
+      'width', 'woman', 'women', 'world', 'worry', 'worse', 'worst', 'worth', 'would', 'wound',
+      'write', 'wrong', 'wrote', 'yield', 'young', 'youth'
+    ];
+    ALLOWED_EXTRA_GUESSES = new Set(fallbackWords);
+    $('#dict-status').textContent = 'Using fallback dictionary';
   }
 }
 
@@ -334,8 +391,7 @@ function setupEvents(){
   $('#shareBtn').addEventListener('click', ()=>{
     const gridEmojis = renderShare();
     const title = `Anniversary Wordle ${solution.toUpperCase()}`;
-    const text = `${title}
-${gridEmojis}`;
+    const text = `${title}\n${gridEmojis}`;
     navigator.clipboard.writeText(text).then(()=> toast('Copied results to clipboard!'));
   });
 }
@@ -349,8 +405,7 @@ function renderShare(){
     const result = scoreGuess(guess, solution);
     lines.push(result.map(s=> s==='correct'?'🟩': s==='present'?'🟨':'⬛').join(''));
   }
-  return lines.join('
-');
+  return lines.join('\n');
 }
 
 async function boot(){
