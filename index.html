@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>Anniversary Wordle</title>
   <style>
     :root {
@@ -14,36 +14,311 @@
       --present: #f59e0b; /* amber-500 */
       --absent: #374151; /* slate-700 */
       --accent: #93c5fd; /* blue-300 */
+      --shadow: rgba(0, 0, 0, 0.25);
+      --shadow-soft: rgba(0, 0, 0, 0.1);
+      --radius: 8px;
+      --radius-sm: 6px;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
-    header { padding: 12px 16px; display:flex; align-items:center; justify-content: space-between; border-bottom: 1px solid var(--tile-border); }
-    h1 { margin: 0; font-size: 18px; letter-spacing: .12em; text-transform: uppercase; }
-    .subtitle { font-size: 12px; opacity: .75; }
-    main { max-width: 520px; margin: 0 auto; padding: 16px; display:flex; flex-direction:column; gap: 12px; }
-    #board { display: grid; gap: 8px; justify-content: center; min-height: 380px; }
-    .row { display: grid; gap: 8px; }
-    .tile { width: 56px; height: 56px; border: 2px solid var(--tile-border); display:grid; place-items:center; font-weight:700; font-size: 26px; text-transform: uppercase; background: var(--tile-bg); border-radius: 6px; }
-    .tile.filled { border-color: var(--accent); }
-    .tile.reveal { transition: transform .3s ease, background-color .3s ease, border-color .3s ease; transform: rotateX(0); }
-    .tile.correct { background: var(--correct); border-color: var(--correct); }
-    .tile.present { background: var(--present); border-color: var(--present); }
-    .tile.absent { background: var(--absent); border-color: var(--absent); }
-    #keyboard { display:grid; gap: 8px; justify-content:center; }
-    .kb-row { display:flex; gap: 6px; justify-content:center; }
-    .key { padding: 12px 10px; background: var(--tile-bg); border: 1px solid var(--tile-border); border-radius: 6px; min-width: 34px; text-align:center; cursor:pointer; user-select:none; font-weight:600; }
-    .key.big { min-width: 58px; }
-    .key.correct { background: var(--correct); border-color: var(--correct); }
-    .key.present { background: var(--present); border-color: var(--present); }
-    .key.absent { background: var(--absent); border-color: var(--absent); }
-    .bar { display:flex; gap:8px; align-items:center; justify-content:space-between; }
-    button, .linklike { background: transparent; color: var(--text); border:1px solid var(--tile-border); border-radius: 8px; padding: 8px 10px; cursor:pointer; }
-    #toast { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(17,24,39,.95); color: var(--text); border:1px solid var(--tile-border); padding: 10px 14px; border-radius: 8px; display:none; z-index: 10; }
-    .hint { font-size: 13px; opacity:.9; background: #0b1220; border:1px solid var(--tile-border); padding: 8px 10px; border-radius: 8px; }
-    .muted { opacity: .7; }
-    footer { padding: 10px 16px; text-align: center; font-size: 12px; opacity:.75 }
-    a { color: #93c5fd; }
-    .small { font-size: 12px; opacity:.8; }
+    body { 
+      margin: 0; 
+      background: var(--bg); 
+      color: var(--text); 
+      font-family: system-ui, -apple-system, 'SF Pro Display', Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji"; 
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    header { 
+      padding: 16px 20px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      border-bottom: 1px solid var(--tile-border); 
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(17, 24, 39, 0.95);
+    }
+    h1 { 
+      margin: 0; 
+      font-size: clamp(16px, 4vw, 20px); 
+      font-weight: 700; 
+      letter-spacing: 0.15em; 
+      text-transform: uppercase; 
+      background: linear-gradient(135deg, var(--accent), #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle { 
+      font-size: clamp(11px, 2.5vw, 13px); 
+      opacity: 0.8; 
+      margin-top: 2px;
+      font-weight: 500;
+    }
+    main { 
+      max-width: min(520px, calc(100vw - 32px)); 
+      margin: 0 auto; 
+      padding: 20px 16px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 16px;
+      min-height: calc(100vh - 120px);
+    }
+    #board { 
+      display: grid; 
+      gap: clamp(6px, 2vw, 10px); 
+      justify-content: center; 
+      min-height: min(380px, 60vh);
+      padding: 8px;
+    }
+    .row { 
+      display: grid; 
+      gap: clamp(6px, 2vw, 10px); 
+    }
+    .tile { 
+      width: clamp(48px, 12vw, 62px); 
+      height: clamp(48px, 12vw, 62px); 
+      border: 2px solid var(--tile-border); 
+      display: grid; 
+      place-items: center; 
+      font-weight: 700; 
+      font-size: clamp(20px, 5vw, 28px); 
+      text-transform: uppercase; 
+      background: var(--tile-bg); 
+      border-radius: var(--radius-sm); 
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 3px var(--shadow-soft);
+    }
+    .tile.filled { 
+      border-color: var(--accent); 
+      transform: scale(1.02);
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .tile.reveal { 
+      animation: flipIn 0.5s ease-in-out;
+      transform: rotateX(0); 
+    }
+    .tile.correct { 
+      background: var(--correct); 
+      border-color: var(--correct); 
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+    .tile.present { 
+      background: var(--present); 
+      border-color: var(--present); 
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    .tile.absent { 
+      background: var(--absent); 
+      border-color: var(--absent); 
+      opacity: 0.7;
+    }
+    #keyboard { 
+      display: grid; 
+      gap: clamp(6px, 2vw, 10px); 
+      justify-content: center;
+      padding: 0 8px;
+      margin-top: auto;
+    }
+    .kb-row { 
+      display: flex; 
+      gap: clamp(4px, 1.5vw, 8px); 
+      justify-content: center; 
+    }
+    .key { 
+      padding: clamp(10px, 3vw, 14px) clamp(6px, 2vw, 12px); 
+      background: var(--tile-bg); 
+      border: 1px solid var(--tile-border); 
+      border-radius: var(--radius-sm); 
+      min-width: clamp(28px, 8vw, 40px); 
+      text-align: center; 
+      cursor: pointer; 
+      user-select: none; 
+      font-weight: 600;
+      font-size: clamp(12px, 3.5vw, 14px);
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .key.big { 
+      min-width: clamp(50px, 15vw, 70px); 
+      font-size: clamp(11px, 3vw, 13px);
+    }
+    .key:hover, .key:focus { 
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .key:active { 
+      transform: translateY(0);
+      box-shadow: 0 1px 4px var(--shadow);
+    }
+    .key.correct { 
+      background: var(--correct); 
+      border-color: var(--correct); 
+      color: white;
+    }
+    .key.present { 
+      background: var(--present); 
+      border-color: var(--present); 
+      color: white;
+    }
+    .key.absent { 
+      background: var(--absent); 
+      border-color: var(--absent); 
+      opacity: 0.6;
+    }
+    .bar { 
+      display: flex; 
+      gap: clamp(8px, 3vw, 16px); 
+      align-items: center; 
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    button, .linklike { 
+      background: var(--tile-bg); 
+      color: var(--text); 
+      border: 1px solid var(--tile-border); 
+      border-radius: var(--radius); 
+      padding: clamp(8px, 2.5vw, 12px) clamp(12px, 3vw, 16px); 
+      cursor: pointer;
+      font-size: clamp(12px, 3vw, 14px);
+      font-weight: 500;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:hover, .linklike:hover {
+      background: var(--accent);
+      color: var(--bg);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+    button:active, .linklike:active {
+      transform: translateY(0);
+    }
+    #toast { 
+      position: fixed; 
+      top: 20px; 
+      left: 50%; 
+      transform: translateX(-50%); 
+      background: rgba(17,24,39,0.98); 
+      color: var(--text); 
+      border: 1px solid var(--tile-border); 
+      padding: 12px 20px; 
+      border-radius: var(--radius); 
+      display: none; 
+      z-index: 100;
+      font-weight: 600;
+      font-size: clamp(13px, 3.5vw, 15px);
+      box-shadow: 0 8px 32px var(--shadow);
+      backdrop-filter: blur(20px);
+      animation: slideInDown 0.3s ease;
+    }
+    .hint { 
+      font-size: clamp(12px, 3vw, 14px); 
+      opacity: 0.95; 
+      background: linear-gradient(135deg, #0b1220, #1a202c); 
+      border: 1px solid var(--tile-border); 
+      padding: 12px 16px; 
+      border-radius: var(--radius); 
+      box-shadow: inset 0 1px 3px var(--shadow-soft);
+      margin: 4px 0;
+    }
+    .muted { 
+      opacity: 0.75; 
+      font-weight: 500;
+    }
+    footer { 
+      padding: 16px 20px; 
+      text-align: center; 
+      font-size: clamp(11px, 2.5vw, 13px); 
+      opacity: 0.7;
+      background: rgba(17, 24, 39, 0.5);
+      backdrop-filter: blur(10px);
+    }
+    a { 
+      color: var(--accent); 
+      text-decoration: none;
+      transition: opacity 0.15s ease;
+    }
+    a:hover {
+      opacity: 0.8;
+    }
+    .small { 
+      font-size: clamp(10px, 2.5vw, 12px); 
+      opacity: 0.8; 
+      font-weight: 500;
+    }
+    
+    /* Animations */
+    @keyframes flipIn {
+      0% { transform: rotateX(-90deg); }
+      50% { transform: rotateX(-45deg); }
+      100% { transform: rotateX(0deg); }
+    }
+    
+    @keyframes slideInDown {
+      0% { 
+        transform: translate(-50%, -20px);
+        opacity: 0;
+      }
+      100% { 
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      75% { transform: translateX(2px); }
+    }
+    
+    .shake {
+      animation: shake 0.3s ease-in-out;
+    }
+    
+    /* Mobile optimizations */
+    @media (max-width: 480px) {
+      header {
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+      }
+      
+      .bar {
+        justify-content: center;
+        gap: 12px;
+      }
+      
+      main {
+        padding: 16px 12px;
+        gap: 12px;
+      }
+      
+      #board {
+        gap: 6px;
+        padding: 4px;
+      }
+      
+      .row {
+        gap: 6px;
+      }
+    }
+    
+    @media (max-height: 700px) {
+      main {
+        gap: 12px;
+      }
+      
+      #board {
+        min-height: min(300px, 50vh);
+      }
+    }
   </style>
 </head>
 <body>
@@ -298,15 +573,39 @@ function handleKey(code){
       drawCell(currentRow, currentCol, '');
     }
   } else if (code === 'Enter') {
-    if (currentCol !== colCount){ toast('Not enough letters'); return; }
+    if (currentCol !== colCount){ 
+      toast('Not enough letters');
+      // Add shake animation to current row
+      const row = document.querySelector(`.row:nth-child(${currentRow + 1})`);
+      row.classList.add('shake');
+      setTimeout(() => row.classList.remove('shake'), 300);
+      return; 
+    }
     const guess = grid[currentRow].join('');
-    if (!isValidGuess(guess)) { toast('Not in word list'); return; }
+    if (!isValidGuess(guess)) { 
+      toast('Not in word list');
+      // Add shake animation to current row
+      const row = document.querySelector(`.row:nth-child(${currentRow + 1})`);
+      row.classList.add('shake');
+      setTimeout(() => row.classList.remove('shake'), 300);
+      return; 
+    }
     const result = scoreGuess(guess, solution);
     revealRow(currentRow, result);
     if (guess === solution){
       finished = true;
-      $('#status').textContent = `🎉 SHAZAM! The word was ${solution.toUpperCase()}.`;
-      toast('SHAZAM! You got it!');
+      $('#status').innerHTML = `<span style="font-size: 1.2em; background: linear-gradient(135deg, #22c55e, #16a34a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700;">🎉 SHAZAM!</span> The word was <strong style="color: var(--accent);">${solution.toUpperCase()}</strong>.`;
+      toast('🎊 SHAZAM! You got it! 🎊', 2000);
+      // Add celebration animation to the board
+      setTimeout(() => {
+        document.querySelectorAll('.tile.correct').forEach((tile, i) => {
+          setTimeout(() => {
+            tile.style.animation = 'none';
+            tile.style.transform = 'scale(1.1)';
+            setTimeout(() => tile.style.transform = 'scale(1)', 200);
+          }, i * 100);
+        });
+      }, 500);
       return;
     }
     currentRow++;
