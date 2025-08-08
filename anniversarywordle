@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anniversary Wordle</title>
+  <style>
+    :root {
+      --bg: #111827; /* slate-900 */
+      --tile-bg: #1f2937; /* slate-800 */
+      --tile-border: #374151; /* slate-700 */
+      --text: #e5e7eb; /* gray-200 */
+      --correct: #22c55e; /* green-500 */
+      --present: #f59e0b; /* amber-500 */
+      --absent: #374151; /* slate-700 */
+      --accent: #93c5fd; /* blue-300 */
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    header { padding: 12px 16px; display:flex; align-items:center; justify-content: space-between; border-bottom: 1px solid var(--tile-border); }
+    h1 { margin: 0; font-size: 18px; letter-spacing: .12em; text-transform: uppercase; }
+    .subtitle { font-size: 12px; opacity: .75; }
+    main { max-width: 520px; margin: 0 auto; padding: 16px; display:flex; flex-direction:column; gap: 12px; }
+    #board { display: grid; gap: 8px; justify-content: center; }
+    .row { display: grid; gap: 8px; }
+    .tile { width: 56px; height: 56px; border: 2px solid var(--tile-border); display:grid; place-items:center; font-weight:700; font-size: 26px; text-transform: uppercase; background: var(--tile-bg); border-radius: 6px; }
+    .tile.filled { border-color: var(--accent); }
+    .tile.reveal { transition: transform .3s ease, background-color .3s ease, border-color .3s ease; transform: rotateX(0); }
+    .tile.correct { background: var(--correct); border-color: var(--correct); }
+    .tile.present { background: var(--present); border-color: var(--present); }
+    .tile.absent { background: var(--absent); border-color: var(--absent); }
+    #keyboard { display:grid; gap: 8px; justify-content:center; }
+    .kb-row { display:flex; gap: 6px; justify-content:center; }
+    .key { padding: 12px 10px; background: var(--tile-bg); border: 1px solid var(--tile-border); border-radius: 6px; min-width: 34px; text-align:center; cursor:pointer; user-select:none; font-weight:600; }
+    .key.big { min-width: 58px; }
+    .key.correct { background: var(--correct); border-color: var(--correct); }
+    .key.present { background: var(--present); border-color: var(--present); }
+    .key.absent { background: var(--absent); border-color: var(--absent); }
+    .bar { display:flex; gap:8px; align-items:center; justify-content:space-between; }
+    button, .linklike { background: transparent; color: var(--text); border:1px solid var(--tile-border); border-radius: 8px; padding: 8px 10px; cursor:pointer; }
+    #toast { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(17,24,39,.95); color: var(--text); border:1px solid var(--tile-border); padding: 10px 14px; border-radius: 8px; display:none; z-index: 10; }
+    .hint { font-size: 13px; opacity:.9; background: #0b1220; border:1px solid var(--tile-border); padding: 8px 10px; border-radius: 8px; }
+    .muted { opacity: .7; }
+    footer { padding: 10px 16px; text-align: center; font-size: 12px; opacity:.75 }
+    a { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <div id="toast"></div>
+  <header>
+    <div>
+      <h1>Anniversary Wordle</h1>
+      <div class="subtitle">Love, luck, and the Year of the Pig 🐖</div>
+    </div>
+    <div class="bar">
+      <button id="newGameBtn" title="Pick a new themed word">New game</button>
+      <button id="shareBtn" title="Copy your grid">Share</button>
+    </div>
+  </header>
+  <main>
+    <div class="bar">
+      <div id="status" class="muted">Guess the word in 6 tries.</div>
+      <div><label><input type="checkbox" id="showHint"> Show hint</label></div>
+    </div>
+    <div id="hint" class="hint" style="display:none"></div>
+    <div id="board"></div>
+    <div id="keyboard"></div>
+  </main>
+  <footer>
+    Theme list is editable in code. URL overrides: <code>?answer=pearl</code> or <code>?seed=YYYYMMDD</code>.
+  </footer>
+
+<script>
+/**************
+ * THEMED WORD LIST (5 letters each)
+ * Add or remove entries as you like. Each has a hint.
+ **************/
+const THEME_WORDS = [
+  { word: 'paper', hint: '1st anniversary traditional gift' },
+  { word: 'linen', hint: '4th anniversary (UK); textiles theme' },
+  { word: 'ivory', hint: '14th anniversary (traditional)' },
+  { word: 'china', hint: '20th anniversary gift' },
+  { word: 'pearl', hint: '30th anniversary' },
+  { word: 'coral', hint: '35th anniversary' },
+  { word: 'silver', hint: '25th anniversary (not 5 letters, excluded)', disabled: true },
+  { word: 'bacon', hint: 'Pig theme (Year of the Pig)' },
+  { word: 'swine', hint: 'Pig theme' },
+  { word: 'boars', hint: 'Pig theme (plural of boar)' },
+  { word: 'oinks', hint: 'Pig sounds' },
+  { word: 'earth', hint: 'Earth Pig (elemental sign)' },
+  { word: 'roses', hint: 'Classic anniversary flowers' },
+  { word: 'toast', hint: 'Raise a toast to the couple!' },
+  { word: 'vows',  hint: 'Vows (4 letters, excluded)', disabled: true },
+  { word: 'rings', hint: 'Wedding rings' },
+  { word: 'ivory', hint: '14th anniversary (traditional)' },
+  { word: 'music', hint: 'First-dance vibes' },
+  { word: 'cards', hint: 'Anniversary cards' },
+  { word: 'happy', hint: 'Happy anniversary!' }
+].filter(x => !x.disabled && x.word.length === 5);
+
+/**************
+ * LIGHTWEIGHT VALIDATION WORD LIST (optional)
+ * Keep small for simplicity. You can replace with a full dictionary if desired.
+ **************/
+const ALLOWED_EXTRA_GUESSES = new Set([
+  'adore','amour','angel','apple','beaus','bride','candy','cheer','chefs','cider','civet','coups','dance','doves','faith','feast','feels','flame','fling','flute','giant','glint','glows','grace','grins','grits','groom','hearts','honey','hopes','kissy','kitty','lucky','laugh','meter','mirth','party','peace','piano','pinky','proud','smile','sweet','treat','unity','whirl','wines','wrist'
+]);
+
+/**************
+ * UTILITIES
+ **************/
+const $ = s => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+
+function seededIndex(seedStr, listLen){
+  // Simple xorshift32 from string -> 32-bit -> index
+  let h = 2166136261 >>> 0;
+  for (let i=0;i<seedStr.length;i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  // xorshift
+  h ^= h << 13; h ^= h >>> 17; h ^= h << 5; h >>>= 0;
+  return h % listLen;
+}
+
+function todaySeed(){
+  // Default: Europe/London date (local browser date)
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}${m}${day}`;
+}
+
+/**************
+ * GAME STATE
+ **************/
+let solutionObj = null; // {word, hint}
+let solution = '';
+let rowCount = 6;
+let colCount = 5; // default to 5-letter words
+let currentRow = 0;
+let currentCol = 0;
+let grid = [];
+let finished = false;
+
+function pickSolution(){
+  const forced = params.get('answer');
+  const seed = params.get('seed') || todaySeed();
+  if (forced){
+    const found = THEME_WORDS.find(w => w.word.toLowerCase() === forced.toLowerCase());
+    solutionObj = found || { word: forced.toLowerCase(), hint: 'Custom answer via URL' };
+  } else {
+    const idx = seededIndex(seed, THEME_WORDS.length);
+    solutionObj = THEME_WORDS[idx];
+  }
+  solution = solutionObj.word.toLowerCase();
+  colCount = solution.length; // adapt grid to word length (kept 5 for our list)
+}
+
+function buildBoard(){
+  const board = $('#board');
+  board.innerHTML = '';
+  board.style.gridTemplateRows = `repeat(${rowCount}, 1fr)`;
+  board.style.gridTemplateColumns = `1fr`;
+  grid = [];
+  for (let r=0;r<rowCount;r++){
+     const row = document.createElement('div');
+     row.className = 'row';
+     row.style.gridTemplateColumns = `repeat(${colCount}, 56px)`;
+     for (let c=0;c<colCount;c++){
+       const tile = document.createElement('div');
+       tile.className = 'tile';
+       tile.dataset.row = r; tile.dataset.col = c;
+       row.appendChild(tile);
+     }
+     board.appendChild(row);
+     grid.push(new Array(colCount).fill(''));
+  }
+  currentRow = 0; currentCol = 0; finished = false;
+  $('#hint').textContent = `Hint: ${solutionObj.hint} (${solution.length} letters)`;
+}
+
+function buildKeyboard(){
+  const rows = [
+    'QWERTYUIOP',
+    'ASDFGHJKL',
+    'ZXCVBNM'
+  ];
+  const kb = $('#keyboard');
+  kb.innerHTML = '';
+  rows.forEach((r,i)=>{
+    const div = document.createElement('div');
+    div.className = 'kb-row';
+    if (i===2){ addKey(div,'Enter','big'); }
+    for (const ch of r){ addKey(div,ch); }
+    if (i===2){ addKey(div,'⌫','big', 'Backspace'); }
+    kb.appendChild(div);
+  });
+}
+
+function addKey(rowEl, label, cls='', code){
+  const k = document.createElement('div');
+  k.className = 'key' + (cls? ' ' + cls : '');
+  k.textContent = label;
+  k.dataset.code = code || label;
+  k.addEventListener('click', ()=> handleKey(k.dataset.code));
+  rowEl.appendChild(k);
+}
+
+function toast(msg, ms=1200){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.style.display = 'none', ms);
+}
+
+function handleKey(code){
+  if (finished) return;
+  if (/^[A-Z]$/.test(code)) {
+    if (currentCol < colCount) {
+      const ch = code.toLowerCase();
+      grid[currentRow][currentCol] = ch;
+      drawCell(currentRow, currentCol, ch);
+      currentCol++;
+    }
+  } else if (code === 'Backspace' || code === '⌫') {
+    if (currentCol > 0) {
+      currentCol--;
+      grid[currentRow][currentCol] = '';
+      drawCell(currentRow, currentCol, '');
+    }
+  } else if (code === 'Enter') {
+    if (currentCol !== colCount){ toast('Not enough letters'); return; }
+    const guess = grid[currentRow].join('');
+    if (!isValidGuess(guess)) { toast('Not in word list'); return; }
+    const result = scoreGuess(guess, solution);
+    revealRow(currentRow, result);
+    if (guess === solution){
+      finished = true;
+      $('#status').textContent = `🎉 Correct! The word was ${solution.toUpperCase()}.`;
+      toast('You got it!');
+      return;
+    }
+    currentRow++;
+    currentCol = 0;
+    if (currentRow === rowCount){
+      finished = true;
+      $('#status').textContent = `💔 Out of tries. The word was ${solution.toUpperCase()}.`;
+      toast('Next time!');
+    }
+  }
+}
+
+function drawCell(r,c,ch){
+  const tile = document.querySelector(`.tile[data-row="${r}"][data-col="${c}"]`);
+  tile.textContent = ch.toUpperCase();
+  tile.classList.toggle('filled', !!ch);
+}
+
+function isValidGuess(g){
+  if (g.length !== colCount) return false;
+  // Accept solution words and small extra set to keep it simple
+  return g === solution || THEME_WORDS.some(w => w.word === g) || ALLOWED_EXTRA_GUESSES.has(g);
+}
+
+function scoreGuess(guess, answer){
+  const res = new Array(colCount).fill('absent');
+  const aCounts = {};
+  for (let i=0;i<colCount;i++){
+    const ch = answer[i];
+    aCounts[ch] = (aCounts[ch]||0)+1;
+  }
+  // First pass: correct
+  for (let i=0;i<colCount;i++){
+    if (guess[i] === answer[i]){ res[i] = 'correct'; aCounts[guess[i]]--; }
+  }
+  // Second: present
+  for (let i=0;i<colCount;i++){
+    if (res[i] === 'correct') continue;
+    const ch = guess[i];
+    if (aCounts[ch] > 0){ res[i] = 'present'; aCounts[ch]--; }
+  }
+  return res;
+}
+
+function revealRow(r, result){
+  for (let c=0;c<colCount;c++){
+    const tile = document.querySelector(`.tile[data-row="${r}"][data-col="${c}"]`);
+    tile.classList.add('reveal', result[c]);
+  }
+  // Update keyboard keys
+  const guess = grid[r].join('').toUpperCase();
+  for (let i=0;i<colCount;i++){
+    const k = document.querySelector(`.key[data-code="${guess[i]}"]`);
+    if (!k) continue;
+    // precedence: correct > present > absent
+    const newCls = result[i];
+    if (newCls === 'correct' || (newCls === 'present' && !k.classList.contains('correct')) || (!k.classList.contains('correct') && !k.classList.contains('present'))){
+      k.classList.remove('correct','present','absent');
+      k.classList.add(newCls);
+    }
+  }
+}
+
+function setupEvents(){
+  document.addEventListener('keydown', (e)=>{
+    const code = e.key.length === 1 ? e.key.toUpperCase() : e.key; // letters, Enter, Backspace
+    if (/^[A-Za-z]$/.test(code) || code === 'Enter' || code === 'Backspace'){
+      e.preventDefault();
+      handleKey(code);
+    }
+  });
+  $('#showHint').addEventListener('change', (e)=>{
+    $('#hint').style.display = e.target.checked ? '' : 'none';
+  });
+  $('#newGameBtn').addEventListener('click', ()=>{
+    // rotate seed by one and reload state
+    const seed = params.get('seed') || todaySeed();
+    const nextSeed = String(BigInt(seed) + 1n);
+    params.set('seed', nextSeed);
+    history.replaceState(null,'',`?${params.toString()}`);
+    startGame();
+  });
+  $('#shareBtn').addEventListener('click', ()=>{
+    const gridEmojis = renderShare();
+    const title = `Anniversary Wordle ${solution.toUpperCase()}`;
+    const text = `${title}\n${gridEmojis}`;
+    navigator.clipboard.writeText(text).then(()=> toast('Copied results to clipboard!'));
+  });
+}
+
+function renderShare(){
+  // Build emoji grid up to currentRow or until win
+  const lines = [];
+  let stopAt = finished && $('#status').textContent.includes('Correct!') ? currentRow+1 : Math.min(currentRow, rowCount);
+  for (let r=0;r<stopAt;r++){
+    // Rescore (cheap for small sizes)
+    const guess = grid[r].join('');
+    const result = scoreGuess(guess, solution);
+    lines.push(result.map(s=> s==='correct'?'🟩': s==='present'?'🟨':'⬛').join(''));
+  }
+  return lines.join('\n');
+}
+
+function startGame(){
+  pickSolution();
+  buildBoard();
+  buildKeyboard();
+  $('#status').textContent = `Guess the word in ${rowCount} tries.`;
+  $('#hint').style.display = $('#showHint').checked ? '' : 'none';
+}
+
+// Boot
+setupEvents();
+startGame();
+</script>
+</body>
+</html>
